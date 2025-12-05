@@ -2,10 +2,10 @@ import random
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from model.users import Customer
-from schema.schema import Register, Login, VerifyOTP
+from schema.schema import Register, Login, VerifyOTP,UpdateProfile
 from datetime import datetime, timedelta
 from fastapi.security import OAuth2PasswordBearer
-from jose import jwt
+import jwt
 
 SECRET_KEY = "MESSHO"
 ALGORITHM = "HS256"
@@ -76,3 +76,40 @@ def login_customer(data: Login, db: Session):
     token = create_token({"user_id": user.id})
 
     return {"msg": "Login Successful", "token": token}
+
+
+# Update Profile
+def update_profile(user_id: int, data: UpdateProfile, db: Session):
+
+    user = db.query(Customer).filter(Customer.id == user_id).first()
+    if not user:
+        raise HTTPException(404, "User not found")
+
+    if db.query(Customer).filter(Customer.email == data.email, Customer.id != user_id).first():
+        raise HTTPException(409, "Email already exists")
+
+    if db.query(Customer).filter(Customer.phonenumber == data.phonenumber, Customer.id != user_id).first():
+        raise HTTPException(409, "Phone number already exists")
+
+    user.customername = data.customername
+    user.email = data.email
+    user.phonenumber = data.phonenumber
+
+    db.commit()
+
+    return {"msg": "Profile Updated"}
+
+
+
+# ------------ DELETE CUSTOMER ACCOUNT -----------------
+def delete_customer(user_id: int, db: Session):
+
+    user = db.query(Customer).filter(Customer.id == user_id).first()
+
+    if not user:
+        raise HTTPException(404, "User not found")
+
+    db.delete(user)
+    db.commit()
+
+    return {"msg": "Account deleted successfully"}

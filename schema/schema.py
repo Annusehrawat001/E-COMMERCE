@@ -38,3 +38,8 @@ class Login(BaseModel):
 class VerifyOTP(BaseModel):
     email: EmailStr
     otp: str
+
+class UpdateProfile(BaseModel):
+    customername: str
+    email: EmailStr
+    phonenumber: str
