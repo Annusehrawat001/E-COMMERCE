@@ -19,14 +19,18 @@ class Customer(Base):
     otp = Column(String, nullable=True)
     verified = Column(Boolean, default=False)
 
-    orders = relationship("Order", back_populates="customer")
+    orders = relationship(
+        "Order",
+        back_populates="customer",
+        cascade="all, delete, delete-orphan"
+    )
 
 
 class Order(Base):
     __tablename__ = "orders"
 
     id = Column(Integer, primary_key=True, index=True)
-    customer_id = Column(Integer, ForeignKey("customers.id"))
+    customer_id = Column(Integer, ForeignKey("customers.id", ondelete="CASCADE"))
     total_amount = Column(Integer, nullable=False)
     status = Column(String, default="Pending")
     created = Column(DateTime, default=datetime.utcnow)
@@ -43,7 +47,11 @@ class Manufacturer(Base):
     email = Column(String, nullable=True)
     country = Column(String, nullable=True)
 
-    products = relationship("Product", back_populates="manufacturer")
+    products = relationship(
+        "Product",
+        back_populates="manufacturer",
+        cascade="all, delete, delete-orphan"
+    )
 
 
 # -------------------- CATEGORY --------------------
@@ -54,7 +62,11 @@ class Category(Base):
     name = Column(String, nullable=False, unique=True)
     description = Column(String, nullable=True)
 
-    products = relationship("Product", back_populates="category")
+    products = relationship(
+        "Product",
+        back_populates="category",
+        cascade="all, delete, delete-orphan"
+    )
 
 
 # -------------------- PRODUCT --------------------
@@ -66,8 +78,8 @@ class Product(Base):
     description = Column(String, nullable=True)
     price = Column(Integer, nullable=False)
     stock = Column(Integer, default=0)
-    manufacturer_id = Column(Integer, ForeignKey("manufacturers.id"), nullable=True)
-    category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
+    manufacturer_id = Column(Integer, ForeignKey("manufacturers.id", ondelete="CASCADE"), nullable=True)
+    category_id = Column(Integer, ForeignKey("categories.id", ondelete="CASCADE"))
 
     manufacturer = relationship("Manufacturer", back_populates="products")
     category = relationship("Category", back_populates="products")
