@@ -154,7 +154,7 @@ from sqlalchemy.orm import Session
 from database.db import get_db
 from schema.schema import ProductCreate
 from controller.user import (
-    create_product, get_product, update_product, delete_product, list_products
+    create_product, get_product, update_product, delete_product
 )
 
 router = APIRouter()
