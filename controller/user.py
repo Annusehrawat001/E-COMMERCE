@@ -190,11 +190,11 @@ def create_product(data: ProductCreate, db: Session):
         name=data.name,
         description=data.description,
         price=data.price,
-        stock=data.stock or 0,
-        image=data.image,
+        stock=data.stock,
         manufacturer_id=data.manufacturer_id,
         category_id=data.category_id
     )
+    
     db.add(p)
     db.commit()
     db.refresh(p)
@@ -213,8 +213,7 @@ def update_product(prod_id: int, data: ProductCreate, db: Session):
     p.name = data.name
     p.description = data.description
     p.price = data.price
-    p.stock = data.stock or 0
-    p.image = data.image
+    p.stock = data.stock
     p.manufacturer_id = data.manufacturer_id
     p.category_id = data.category_id
     db.commit()
@@ -229,37 +228,3 @@ def delete_product(prod_id: int, db: Session):
     db.commit()
     return {"msg": "Product deleted"}
 
-def list_products(db: Session,
-                  page: int = 1, limit: int = 10,
-                  name: Optional[str] = None,
-                  category_id: Optional[int] = None,
-                  manufacturer_id: Optional[int] = None,
-                  min_price: Optional[int] = None,
-                  max_price: Optional[int] = None,
-                  sort_by: str = "id",
-                  order: str = "asc"):
-    query = db.query(Product)
-
-    if name:
-        query = query.filter(Product.name.ilike(f"%{name}%"))
-    if category_id:
-        query = query.filter(Product.category_id == category_id)
-    if manufacturer_id:
-        query = query.filter(Product.manufacturer_id == manufacturer_id)
-    if min_price is not None:
-        query = query.filter(Product.price >= min_price)
-    if max_price is not None:
-        query = query.filter(Product.price <= max_price)
-
-    valid = ["id", "name", "price", "stock"]
-    if sort_by not in valid:
-        raise HTTPException(status_code=400, detail=f"Invalid sort field: choose from {valid}")
-
-    col = getattr(Product, sort_by)
-    col = col.desc() if order == "desc" else col.asc()
-
-    total = query.count()
-    skip = (page - 1) * limit
-    items = query.order_by(col).offset(skip).limit(limit).all()
-
-    return {"page": page, "limit": limit, "total": total, "items": items}

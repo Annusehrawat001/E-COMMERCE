@@ -7,7 +7,7 @@ from controller.user import (
     send_reset_otp, reset_password
 )
 
-router = APIRouter(prefix="/customer", tags=["Customer"])
+router = APIRouter()
 
 
 @router.post("/register")
@@ -45,7 +45,7 @@ from controller.user import (
     send_reset_otp, reset_password
 )
 
-router = APIRouter(prefix="/customer", tags=["Customer"])
+router = APIRouter()
 
 
 @router.post("/register")
@@ -121,7 +121,7 @@ from controller.user import (
     update_category, delete_category
 )
 
-router = APIRouter(prefix="/category", tags=["Category"])
+router = APIRouter()
 
 
 @router.post("/post")
@@ -157,7 +157,7 @@ from controller.user import (
     create_product, get_product, update_product, delete_product, list_products
 )
 
-router = APIRouter(prefix="/product", tags=["Product"])
+router = APIRouter()
 
 
 @router.post("/create")
@@ -180,17 +180,5 @@ def delete(prod_id: int, db: Session = Depends(get_db)):
     return delete_product(prod_id, db)
 
 
-@router.get("/all_list")
-def list_all(
-    page: int = 1, limit: int = 10,
-    name: str = None, category_id: int = None,
-    manufacturer_id: int = None,
-    min_price: int = None, max_price: int = None,
-    sort_by: str = "id", order: str = "asc",
-    db: Session = Depends(get_db)
-):
-    return list_products(
-        db, page, limit, name, category_id,
-        manufacturer_id, min_price, max_price,
-        sort_by, order
-    )
+
+

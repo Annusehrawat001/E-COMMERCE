@@ -7,9 +7,9 @@ class CustomerCreate(BaseModel):
     email: EmailStr
     phonenumber: str
     password: str
-    city: Optional[str] = None
-    state: Optional[str] = None
-    pincode: Optional[int] = None
+    city: str
+    state:str
+    pincode: int
 
 class CustomerResponse(BaseModel):
     id: int
