@@ -1,115 +1,265 @@
-import random
-from fastapi import HTTPException
-from sqlalchemy.orm import Session
-from model.users import Customer
-from schema.schema import Register, Login, VerifyOTP,UpdateProfile
-from datetime import datetime, timedelta
-from fastapi.security import OAuth2PasswordBearer
-import jwt
 
+#
+import random
+from datetime import datetime, timedelta
+from typing import Optional
+from database.db import get_db
+from sqlalchemy.orm import Session
+from fastapi import HTTPException
+from passlib.context import CryptContext
+from jose import jwt
+
+from model.users import Customer, Manufacturer, Category, Product
+from schema.schema import CustomerCreate, VerifyOTP, LoginSchema, ResetPasswordSchema, ManufacturerCreate, CategoryCreate, ProductCreate
+
+# TOKEN 
 SECRET_KEY = "MESSHO"
 ALGORITHM = "HS256"
+EXPIRY_MINUTES = 60 * 24
 
-oauth2_scheme=OAuth2PasswordBearer(tokenUrl="logintoken")
+pwd_context = CryptContext(schemes=["bcrypt"])
 
-def create_token(data: dict):
-    payload = {
-        **data,
-        "exp": datetime.utcnow() + timedelta(hours=24)
-    }
-    return jwt.encode(payload, SECRET_KEY, ALGORITHM)
+def hash_password(pwd: str) :
+    return pwd_context.hash(pwd)
+
+def verify_password(plain: str, hashed: str) :
+    return pwd_context.verify(plain, hashed)
+
+def create_access_token(data: dict, expiry_minutes: Optional[int] = None):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(minutes=(expiry_minutes or EXPIRY_MINUTES))
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
-# ----------- REGISTER ------------
-def register_customer(data: Register, db: Session):
-
+# ---------------- Customer ----------------
+def register_customer(data: CustomerCreate, db: Session):
     if db.query(Customer).filter(Customer.email == data.email).first():
-        raise HTTPException(409, "Email already exists")
-
+        raise HTTPException(status_code=409, detail="Email already exists")
     if db.query(Customer).filter(Customer.phonenumber == data.phonenumber).first():
-        raise HTTPException(409, "Phone number already exists")
+        raise HTTPException(status_code=409, detail="Phone number already exists")
 
     otp = str(random.randint(1000, 9999))
-
-    new_user = Customer(
+    new = Customer(
         customername=data.customername,
         email=data.email,
         phonenumber=data.phonenumber,
-        otp=otp
+        password=hash_password(data.password),
+        city=data.city,
+        state=data.state,
+        pincode=data.pincode,
+        otp=otp,
+        verified=False
     )
-
-    db.add(new_user)
+    db.add(new)
     db.commit()
+    db.refresh(new)
 
-    return {"msg": "OTP sent", "otp": otp}
+    return {"msg": "OTP generated", "otp": otp, "email": new.email}
 
-
-# ----------- VERIFY OTP ----------
 def verify_otp(data: VerifyOTP, db: Session):
-
     user = db.query(Customer).filter(Customer.email == data.email).first()
-
     if not user:
-        raise HTTPException(404, "User not found")
-
+        raise HTTPException(status_code=404, detail="User not found")
     if user.otp != data.otp:
-        raise HTTPException(400, "Incorrect OTP")
-
-    user.is_verified = True
+        raise HTTPException(status_code=400, detail="Incorrect OTP")
+    user.verified = True
     user.otp = None
     db.commit()
+    return {"msg": "OTP verified"}
 
-    return {"msg": "OTP Verified"}
-
-
-# ----------- LOGIN -----------
-def login_customer(data: Login, db: Session):
-
+def login_user(data: LoginSchema, db: Session):
     user = db.query(Customer).filter(Customer.email == data.email).first()
-
     if not user:
-        raise HTTPException(404, "User not found")
+        raise HTTPException(status_code=404, detail="User not found")
+    if not verify_password(data.password, user.password):
+        raise HTTPException(status_code=400, detail="Invalid credentials")
+    if not user.verified:
+        raise HTTPException(status_code=403, detail="OTP not verified")
+    token = create_access_token({"sub": str(user.id)})
+    return {"access_token": token, "token_type": "bearer", "id": user.id}
 
-    if not user.is_verified:
-        raise HTTPException(403, "OTP not verified")
-
-    token = create_token({"user_id": user.id})
-
-    return {"msg": "Login Successful", "token": token}
-
-
-# Update Profile
-def update_profile(user_id: int, data: UpdateProfile, db: Session):
-
-    user = db.query(Customer).filter(Customer.id == user_id).first()
+def send_reset_otp(email: str, db: Session):
+    user = db.query(Customer).filter(Customer.email == email).first()
     if not user:
-        raise HTTPException(404, "User not found")
-
-    if db.query(Customer).filter(Customer.email == data.email, Customer.id != user_id).first():
-        raise HTTPException(409, "Email already exists")
-
-    if db.query(Customer).filter(Customer.phonenumber == data.phonenumber, Customer.id != user_id).first():
-        raise HTTPException(409, "Phone number already exists")
-
-    user.customername = data.customername
-    user.email = data.email
-    user.phonenumber = data.phonenumber
-
+        raise HTTPException(status_code=404, detail="User not found")
+    otp = random.randint(1000, 9999)
+    user.otp = str(otp)
     db.commit()
+    return {"msg": "OTP generated for reset", "otp": otp}
 
-    return {"msg": "Profile Updated"}
-
-
-
-# ------------ DELETE CUSTOMER ACCOUNT -----------------
-def delete_customer(user_id: int, db: Session):
-
-    user = db.query(Customer).filter(Customer.id == user_id).first()
-
+def reset_password(data: ResetPasswordSchema, db: Session):
+    user = db.query(Customer).filter(Customer.email == data.email).first()
     if not user:
-        raise HTTPException(404, "User not found")
-
-    db.delete(user)
+        raise HTTPException(status_code=404, detail="User not found")
+    if user.otp is None or int(user.otp) != data.otp:
+        raise HTTPException(status_code=400, detail="Incorrect OTP")
+    user.password = hash_password(data.new_password)
+    user.otp = None
     db.commit()
+    return {"msg": "Password reset successful"}
 
-    return {"msg": "Account deleted successfully"}
+
+# ---------------- Manufacturer ----------------
+def create_manufacturer(data: ManufacturerCreate, db: Session):
+    if db.query(Manufacturer).filter(Manufacturer.name == data.name).first():
+        raise HTTPException(status_code=409, detail="Manufacturer already exists")
+    m = Manufacturer(name=data.name, email=data.email, country=data.country)
+    db.add(m)
+    db.commit()
+    db.refresh(m)
+    return m
+
+def get_all_manufacturers(db: Session):
+    return db.query(Manufacturer).all()
+
+def get_manufacturer(man_id: int, db: Session):
+    m = db.query(Manufacturer).filter(Manufacturer.id == man_id).first()
+    if not m:
+        raise HTTPException(status_code=404, detail="Manufacturer not found")
+    return m
+
+def update_manufacturer(man_id: int, data: ManufacturerCreate, db: Session):
+    m = db.query(Manufacturer).filter(Manufacturer.id == man_id).first()
+    if not m:
+        raise HTTPException(status_code=404, detail="Manufacturer not found")
+    m.name = data.name
+    m.email = data.email
+    m.country = data.country
+    db.commit()
+    db.refresh(m)
+    return m
+
+def delete_manufacturer(man_id: int, db: Session):
+    m = db.query(Manufacturer).filter(Manufacturer.id == man_id).first()
+    if not m:
+        raise HTTPException(status_code=404, detail="Manufacturer not found")
+    db.delete(m)
+    db.commit()
+    return {"msg": "Manufacturer deleted"}
+
+
+# ---------------- Category ----------------
+def create_category(data: CategoryCreate, db: Session):
+    if db.query(Category).filter(Category.name == data.name).first():
+        raise HTTPException(status_code=409, detail="Category already exists")
+    c = Category(name=data.name, description=data.description)
+    db.add(c)
+    db.commit()
+    db.refresh(c)
+    return c
+
+def get_all_categories(db: Session):
+    return db.query(Category).all()
+
+def get_category(cat_id: int, db: Session):
+    c = db.query(Category).filter(Category.id == cat_id).first()
+    if not c:
+        raise HTTPException(status_code=404, detail="Category not found")
+    return c
+
+def update_category(cat_id: int, data: CategoryCreate, db: Session):
+    c = db.query(Category).filter(Category.id == cat_id).first()
+    if not c:
+        raise HTTPException(status_code=404, detail="Category not found")
+    c.name = data.name
+    c.description = data.description
+    db.commit()
+    db.refresh(c)
+    return c
+
+def delete_category(cat_id: int, db: Session):
+    c = db.query(Category).filter(Category.id == cat_id).first()
+    if not c:
+        raise HTTPException(status_code=404, detail="Category not found")
+    db.delete(c)
+    db.commit()
+    return {"msg": "Category deleted"}
+
+
+# ---------------- Product ----------------
+def create_product(data: ProductCreate, db: Session):
+    if data.manufacturer_id:
+        if not db.query(Manufacturer).filter(Manufacturer.id == data.manufacturer_id).first():
+            raise HTTPException(status_code=404, detail="Manufacturer not found")
+    if data.category_id:
+        if not db.query(Category).filter(Category.id == data.category_id).first():
+            raise HTTPException(status_code=404, detail="Category not found")
+
+    p = Product(
+        name=data.name,
+        description=data.description,
+        price=data.price,
+        stock=data.stock or 0,
+        image=data.image,
+        manufacturer_id=data.manufacturer_id,
+        category_id=data.category_id
+    )
+    db.add(p)
+    db.commit()
+    db.refresh(p)
+    return p
+
+def get_product(prod_id: int, db: Session):
+    p = db.query(Product).filter(Product.id == prod_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return p
+
+def update_product(prod_id: int, data: ProductCreate, db: Session):
+    p = db.query(Product).filter(Product.id == prod_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="Product not found")
+    p.name = data.name
+    p.description = data.description
+    p.price = data.price
+    p.stock = data.stock or 0
+    p.image = data.image
+    p.manufacturer_id = data.manufacturer_id
+    p.category_id = data.category_id
+    db.commit()
+    db.refresh(p)
+    return p
+
+def delete_product(prod_id: int, db: Session):
+    p = db.query(Product).filter(Product.id == prod_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="Product not found")
+    db.delete(p)
+    db.commit()
+    return {"msg": "Product deleted"}
+
+def list_products(db: Session,
+                  page: int = 1, limit: int = 10,
+                  name: Optional[str] = None,
+                  category_id: Optional[int] = None,
+                  manufacturer_id: Optional[int] = None,
+                  min_price: Optional[int] = None,
+                  max_price: Optional[int] = None,
+                  sort_by: str = "id",
+                  order: str = "asc"):
+    query = db.query(Product)
+
+    if name:
+        query = query.filter(Product.name.ilike(f"%{name}%"))
+    if category_id:
+        query = query.filter(Product.category_id == category_id)
+    if manufacturer_id:
+        query = query.filter(Product.manufacturer_id == manufacturer_id)
+    if min_price is not None:
+        query = query.filter(Product.price >= min_price)
+    if max_price is not None:
+        query = query.filter(Product.price <= max_price)
+
+    valid = ["id", "name", "price", "stock"]
+    if sort_by not in valid:
+        raise HTTPException(status_code=400, detail=f"Invalid sort field: choose from {valid}")
+
+    col = getattr(Product, sort_by)
+    col = col.desc() if order == "desc" else col.asc()
+
+    total = query.count()
+    skip = (page - 1) * limit
+    items = query.order_by(col).offset(skip).limit(limit).all()
+
+    return {"page": page, "limit": limit, "total": total, "items": items}
