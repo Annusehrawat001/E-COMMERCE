@@ -45,8 +45,8 @@ class ManufacturerCreate(BaseModel):
 class ManufacturerResponse(BaseModel):
     id: int
     name: str
-    email: Optional[EmailStr]
-    country: Optional[str]
+    email: EmailStr
+    country: str
 
     class Config:
         from_attributes = True
@@ -54,12 +54,12 @@ class ManufacturerResponse(BaseModel):
 # ------------------ Category ------------------
 class CategoryCreate(BaseModel):
     name: str
-    description: Optional[str] = None
+    description: str 
 
 class CategoryResponse(BaseModel):
     id: int
     name: str
-    description: Optional[str]
+    description: str
 
     class Config:
         from_attributes = True
@@ -67,20 +67,20 @@ class CategoryResponse(BaseModel):
 # ------------------ Product ------------------
 class ProductCreate(BaseModel):
     name: str
-    description: Optional[str] = None
+    description:str
     price: int
-    stock: Optional[int] = 0
-    manufacturer_id: Optional[int] = None
-    category_id: Optional[int] = None
+    stock: int 
+    manufacturer_id: int 
+    category_id: int
 
 class ProductResponse(BaseModel):
     id: int
     name: str
-    description: Optional[str]
+    description: str
     price: int
     stock: int
-    manufacturer_id: Optional[int]
-    category_id: Optional[int]
+    manufacturer_id: str
+    category_id: str
 
     class Config:
         from_attributes = True
