@@ -74,7 +74,7 @@ class Product(Base):
     __tablename__ = "products"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False)
+    product_name = Column(String, nullable=False)   
     description = Column(String, nullable=True)
     price = Column(Integer, nullable=False)
     stock = Column(Integer, default=0)

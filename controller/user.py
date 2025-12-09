@@ -10,7 +10,7 @@ from passlib.context import CryptContext
 from jose import jwt
 
 from model.users import Customer, Manufacturer, Category, Product
-from schema.schema import CustomerCreate, VerifyOTP, LoginSchema, ResetPasswordSchema, ManufacturerCreate, CategoryCreate, ProductCreate
+from schema.schema import CustomerCreate, VerifyOTP, LoginSchema, ResetPasswordSchema, ManufacturerCreate, CategoryCreate, ProductCreate,ProductSearch
 
 # TOKEN 
 SECRET_KEY = "MESSHO"
@@ -186,14 +186,16 @@ def create_product(data: ProductCreate, db: Session):
         if not db.query(Category).filter(Category.id == data.category_id).first():
             raise HTTPException(status_code=404, detail="Category not found")
 
+  
     p = Product(
-        name=data.name,
-        description=data.description,
-        price=data.price,
-        stock=data.stock,
-        manufacturer_id=data.manufacturer_id,
-        category_id=data.category_id
-    )
+    product_name=data.product_name,
+    description=data.description,
+    price=data.price,
+    stock=data.stock,
+    manufacturer_id=data.manufacturer_id,
+    category_id=data.category_id
+)
+
     
     db.add(p)
     db.commit()
@@ -228,3 +230,35 @@ def delete_product(prod_id: int, db: Session):
     db.commit()
     return {"msg": "Product deleted"}
 
+
+
+  
+def search(filters: ProductSearch, db: Session):
+    query = db.query(Product)
+
+    if filters.product_id:
+        query = query.filter(Product.id == filters.product_id)
+
+    if filters.product_name:
+        query = query.filter(Product.product_name.ilike(f"%{filters.product_name}%"))
+
+    return query.all()
+
+
+from sqlalchemy import asc, desc
+
+def by_order(order_by: str, order_type: str, db: Session):
+    query = db.query(Product)
+
+    if order_by == "name":
+        if order_type == "asc":
+            ordered = query.order_by(asc(Product.product_name))
+        else:
+            ordered = query.order_by(desc(Product.product_name))
+    else:
+        if order_type == "desc":
+            ordered = query.order_by(desc(Product.id))
+        else:
+            ordered = query.order_by(asc(Product.id))
+
+    return ordered.all()

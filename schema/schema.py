@@ -85,6 +85,11 @@ class ProductResponse(BaseModel):
     class Config:
         from_attributes = True
 
+
+class ProductSearch(BaseModel):
+    product_id: Optional[int] = None
+    product_name: Optional[str] = None
+
 # ------------------ Order ------------------
 class OrderCreate(BaseModel):
     customer_id: int
@@ -98,3 +103,7 @@ class OrderResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class ProductSearch(BaseModel):
+    product_id: Optional[int] = None
+    product_name: Optional[str] = None

@@ -36,9 +36,6 @@ def reset_pass(data: ResetPasswordSchema, db: Session = Depends(get_db)):
 
 
 
-from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
-from database.db import get_db
 from schema.schema import CustomerCreate, VerifyOTP, LoginSchema, ResetPasswordSchema
 from controller.user import (
     register_customer, verify_otp, login_user,
@@ -74,16 +71,13 @@ def reset_pass(data: ResetPasswordSchema, db: Session = Depends(get_db)):
 
 
 
-from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
-from database.db import get_db
 from schema.schema import ManufacturerCreate
 from controller.user import (
     create_manufacturer, get_all_manufacturers, get_manufacturer,
     update_manufacturer, delete_manufacturer
 )
 
-router = APIRouter(prefix="/manufacturer", tags=["Manufacturer"])
+router = APIRouter()
 
 
 @router.post("/dataposting")
@@ -112,14 +106,8 @@ def delete(man_id: int, db: Session = Depends(get_db)):
 
 
 
-from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
-from database.db import get_db
 from schema.schema import CategoryCreate
-from controller.user import (
-    create_category, get_all_categories, get_category,
-    update_category, delete_category
-)
+from controller.user import (create_category, get_all_categories, get_category, update_category,delete_category)
 
 router = APIRouter()
 
@@ -149,13 +137,8 @@ def delete(cat_id: int, db: Session = Depends(get_db)):
     return delete_category(cat_id, db)
 
 
-from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
-from database.db import get_db
 from schema.schema import ProductCreate
-from controller.user import (
-    create_product, get_product, update_product, delete_product
-)
+from controller.user import ( create_product, get_product, update_product, delete_product)
 
 router = APIRouter()
 
@@ -180,5 +163,16 @@ def delete(prod_id: int, db: Session = Depends(get_db)):
     return delete_product(prod_id, db)
 
 
+from schema.schema import ProductSearch
+from controller.user import search, by_order
+
+router = APIRouter()
 
 
+@router.post("/search")
+def search_products(filters: ProductSearch, db: Session = Depends(get_db)):
+    return search(filters, db)
+
+@router.get("/sort")
+def sort_products(order_by: str = "id", order_type: str = "asc", db: Session = Depends(get_db)):
+    return by_order(order_by, order_type, db)
