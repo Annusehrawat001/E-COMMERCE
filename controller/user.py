@@ -232,7 +232,6 @@ def delete_product(prod_id: int, db: Session):
 
 
 
-  
 def search(filters: ProductSearch, db: Session):
     query = db.query(Product)
 
@@ -244,9 +243,7 @@ def search(filters: ProductSearch, db: Session):
 
     return query.all()
 
-
 from sqlalchemy import asc, desc
-
 def by_order(order_by: str, order_type: str, db: Session):
     query = db.query(Product)
 
@@ -262,3 +259,5 @@ def by_order(order_by: str, order_type: str, db: Session):
             ordered = query.order_by(asc(Product.id))
 
     return ordered.all()
+
+

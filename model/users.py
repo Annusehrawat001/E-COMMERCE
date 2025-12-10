@@ -8,7 +8,7 @@ from database.db import Base
 class Customer(Base):
     __tablename__ = "customers"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     customername = Column(String, nullable=False)
     email = Column(String, unique=True, nullable=False)
     phonenumber = Column(String, unique=True, nullable=False)
